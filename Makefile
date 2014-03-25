@@ -47,7 +47,6 @@ COMPILE_BEFORE_TEST = \
 	test/unit/semantics/FreeVariableChecker.generated.js \
 	test/unit/codegeneration/PlaceholderParser.generated.js
 
-
 MOCHA_OPTIONS = \
 	--ignore-leaks --ui tdd --require test/node-env.js
 
@@ -73,12 +72,17 @@ test-runtime: bin/traceur-runtime.js $(RUNTIME_TESTS)
 test: test/test-list.js bin/traceur.js $(COMPILE_BEFORE_TEST) \
 	test/unit/runtime/traceur-runtime \
 	wiki test/amd-compiled test/commonjs-compiled test-interpret \
-	test-interpret-absolute test-inline-module-error test-interpret-throw \
-	test-version
+	test-interpret-absolute test-inline-module-error \
+	test-version test/unit/tools/SourceMapMapping
 	node_modules/.bin/mocha $(MOCHA_OPTIONS) $(TESTS)
+	$(MAKE) test-interpret-throw
+
+test/unit/tools/SourceMapMapping: bin/traceur-runtime.js src/node/System.js test/unit/tools/SourceMapMapping.generated.js
+	node_modules/.bin/mocha $(MOCHA_OPTIONS) $^
 
 test/unit: bin/traceur.js bin/traceur-runtime.js
 	node_modules/.bin/mocha $(MOCHA_OPTIONS) $(UNIT_TESTS)
+	rm -r -f test/unit/tools # only used for generated files currently.
 
 test/unit/%-run: test/unit/% bin/traceur.js
 	node_modules/.bin/mocha $(MOCHA_OPTIONS) $<
@@ -125,7 +129,7 @@ test/unit/runtime/traceur-runtime: \
 	node $<
 
 test-version:
-	./traceur -v | grep 'traceur@[0-9]*\.[0-9*\.[0-9]*'
+	./traceur -v | grep '[0-9]*\.[0-9*\.[0-9]*'
 
 boot: clean build
 
