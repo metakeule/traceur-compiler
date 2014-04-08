@@ -117,7 +117,6 @@ export class AsyncTransformer extends CPSTransformer {
   transformAwait_(tree, expression, left, operator) {
     var createTaskState = this.allocateState();
     var callbackState = this.allocateState();
-    var errbackState = this.allocateState();
     var fallThroughState = this.allocateState();
     if (!left)
       callbackState = fallThroughState;
@@ -125,8 +124,7 @@ export class AsyncTransformer extends CPSTransformer {
     var states = [];
     var expression = this.transformAny(expression);
     //  case createTaskState:
-    states.push(new AwaitState(createTaskState, callbackState, errbackState,
-                               expression));
+    states.push(new AwaitState(createTaskState, callbackState, expression));
 
     //  case callbackState:
     //    identifier = $ctx.value;
@@ -144,11 +142,6 @@ export class AsyncTransformer extends CPSTransformer {
       states.push(new FallThroughState(callbackState, fallThroughState,
                                        assignment));
     }
-
-    //  case errbackState:
-    //    throw $ctx.err;
-    states.push(new FallThroughState(errbackState, fallThroughState, createStatementList(
-        parseStatement `throw $ctx.err`)));
 
     return new StateMachine(createTaskState, fallThroughState, states, []);
   }
@@ -183,8 +176,7 @@ export class AsyncTransformer extends CPSTransformer {
     var startState = this.allocateState();
     var endState = this.allocateState();
     var completeState = new FallThroughState(startState, endState,
-        // $ctx.result.callback(expression);
-        createStatementList(this.createCompleteTask_(expression)));
+        parseStatements `$ctx.returnValue = ${expression}`);
     var end = new EndState(endState);
     var returnMachine = new StateMachine(
         startState,
@@ -224,20 +216,6 @@ export class AsyncTransformer extends CPSTransformer {
   transformAsyncBody(tree) {
     var runtimeFunction = parseExpression `$traceurRuntime.asyncWrap`;
     return this.transformCpsFunctionBody(tree, runtimeFunction);
-  }
-
-  /**
-   * @param {number} machineEndState
-   * @return {Array.<ParseTree>}
-   */
-  machineFallThroughStatements(machineEndState) {
-    // $ctx.waitTask.callback(undefined);
-    // $ctx.state = machineEndState;
-    // break;
-    return createStatementList(
-        this.createCompleteTask_(createUndefinedExpression()),
-        createAssignStateStatement(machineEndState),
-        createBreakStatement());
   }
 
   /**

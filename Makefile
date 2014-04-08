@@ -131,6 +131,12 @@ test/unit/runtime/traceur-runtime: \
 test-version:
 	./traceur -v | grep '[0-9]*\.[0-9*\.[0-9]*'
 
+# Skip sloppy tests because the Promise pollyfil is defined in a module
+# and module context in ES6 is strict by default
+test-promise:
+	node_modules/promises-aplus-tests/lib/cli.js \
+	test/node-promise-adapter.js --grep "2.2.5" --grep "sloppy" --invert
+
 boot: clean build
 
 clean: wikiclean
@@ -155,6 +161,8 @@ initbench:
 bin/%.min.js: bin/%.js
 	node build/minifier.js $^ $@
 
+# Do not change the location of this file if at all possible, see
+# https://github.com/google/traceur-compiler/issues/828
 bin/traceur-runtime.js: $(RUNTIME_SRC) src/runtime/polyfill-import.js
 	./traceur --out $@ --referrer='traceur-runtime@$(PACKAGE_VERSION)/' \
 	  $(RUNTIME_SCRIPTS) $(TFLAGS) src/runtime/polyfill-import.js
